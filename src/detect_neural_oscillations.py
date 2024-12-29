@@ -10,7 +10,10 @@ Another way to do that would be use some distance, such as dtw, to
 compare the raw signal of the atoms and the brain waves
 
 """
-
+import mne
+import numpy as np
+import scipy
+from matplotlib import pyplot as plt
 
 ###############################################################################
 # Let us first define the parameters of our model.
@@ -23,11 +26,6 @@ n_times_atom = int(round(sfreq * 1.0))  # 1000. ms
 
 ###############################################################################
 # Next, we define the parameters for multivariate CSC
-
-import scipy.signal.windows
-
-# Monkey-patch scipy.signal.tukey to point to the correct function
-scipy.signal.tukey = scipy.signal.windows.tukey
 
 from alphacsc import BatchCDL
 cdl = BatchCDL(
@@ -67,3 +65,76 @@ cdl.fit(X)
 ###############################################################################
 # Display the 4-th atom, which displays a :math:`\mu`-waveform in its temporal
 # pattern.
+
+rhythms = {4:'Delta',
+           8:'Theta',
+           12:'Alpha-Mu',
+           30:'Beta'}
+
+def find_peaks(model, n_atoms, n=5, figure=False, rows=1, columns=1):
+
+    if figure:
+        figsize = (columns * 5, rows * 5.5)
+        fig, axes = plt.subplots(rows, columns, figsize=figsize, squeeze=False)
+
+    main_rhythm = {}
+
+    for i_atom in range(n_atoms):
+
+        print(f"Atom {i_atom+1}")
+
+        v_hat = model.v_hat_[i_atom]
+        u_hat = model.u_hat_[i_atom]
+        psd = np.abs(np.fft.rfft(v_hat)) ** 2
+        frequencies = np.linspace(0, sfreq / 2.0, len(psd))
+
+        mask = frequencies<=30
+        frequencies = frequencies[mask]
+        psd = psd[mask]
+
+        peaks_idx = np.argmax(psd)
+        peaks_freq = frequencies[peaks_idx]
+        #peaks_idx, _ = scipy.signal.find_peaks(psd)
+        #peaks_freq = np.sort(frequencies[peaks_idx])[::-1]
+
+        print(peaks_freq)
+
+        for v in rhythms.keys():
+            if peaks_freq[0]<v:
+
+                print(f"    {rhythms[v]} wave")
+
+                idx_higher_psd = np.argpartition(u_hat, -n)[-n:]
+                idx_sorted = idx_higher_psd[np.argsort(u_hat[idx_higher_psd])[::-1]]
+
+                # most relevant channels
+                channels = np.array(info.ch_names)[idx_sorted]
+
+                print(f"    {n} most relevant channels:")
+                print(f'    {channels}')
+
+                main_rhythm[i_atom] = {"rhythm": rhythms[v],
+                                       "channels": channels}
+
+                if figure:
+                    row = i_atom // columns
+                    col = i_atom % columns
+                    ax = axes[row, col]
+
+                    u_hat = model.u_hat_[i_atom]
+                    mne.viz.plot_topomap(u_hat, info, axes=ax, show=False)
+                    ax.set(title=f'Atom {i_atom + 1} - Rhythm {rhythms[v]}',)
+
+                break
+
+    if figure:
+        for i in range(n_atoms, rows * columns):
+            row = i // columns
+            col = i % columns
+            axes[row, col].axis('off')
+        plt.tight_layout()
+        plt.show()
+
+    return main_rhythm
+
+main_rhythm = find_peaks(cdl,n_atoms, figure=True, rows=5, columns=5)

@@ -54,9 +54,21 @@ cdl = BatchCDL(
 
 from alphacsc.datasets.mne_data import load_data
 t_lim = (-2, 4)
-X, info = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq)
 
+motor = []
+X_motor, info_motor = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq)
 
+meg_channels = [
+    "MEG 1521", "MEG 1721", "MEG 1921", "MEG 1941",
+    "MEG 2031", "MEG 2321", "MEG 2521", "MEG 2631",
+    "MEG 1711", "MEG 1731", "MEG 1931", "MEG 2111",
+    "MEG 2341", "MEG 2511", "MEG 2531",
+    "MEG 1741", "MEG 2131", "MEG 2141", "MEG 2541"
+]
+
+###############################################################################
+# Separate the data in two parts depending on the region
+# Select the channels from visual cortex (mu rhythms) and
 ###############################################################################
 # Fit the model and learn rank1 atoms
 cdl.fit(X)

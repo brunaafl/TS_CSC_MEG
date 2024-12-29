@@ -33,13 +33,10 @@ n_times_atom = int(round(sfreq * 1.0))  # 1000. ms
 # Next, we define the parameters for multivariate CSC
 
 # This fix is not working. I will import my forked version of alphacsc instead
-import scipy.signal.windows
-import scipy.signal
-
-# Patch scipy.signal to include tukey
-scipy.signal.tukey = scipy.signal.windows.tukey
-
+# Reload alphacsc to ensure the patch is applied
+import importlib
 from alphacsc import BatchCDL
+
 cdl = BatchCDL(
     # Shape of the dictionary
     n_atoms=n_atoms,
@@ -82,7 +79,7 @@ import mne
 import numpy as np
 import matplotlib.pyplot as plt
 
-def display_atom(cdl,i_atom):
+def display_atom(model, i_atom):
 
     n_plots = 3
     figsize = (n_plots * 5, 5.5)
@@ -90,13 +87,13 @@ def display_atom(cdl,i_atom):
 
     # Plot the spatial map of the learn atom using mne topomap
     ax = axes[0, 0]
-    u_hat = cdl.u_hat_[i_atom]
+    u_hat = model.u_hat_[i_atom]
     mne.viz.plot_topomap(u_hat, info, axes=ax, show=False)
     ax.set(title='Learned spatial pattern')
 
     # Plot the temporal pattern of the learn atom
     ax = axes[0, 1]
-    v_hat = cdl.v_hat_[i_atom]
+    v_hat = model.v_hat_[i_atom]
     t = np.arange(v_hat.size) / sfreq
     ax.plot(t, v_hat)
     ax.set(xlabel='Time (sec)', title='Learned temporal waveform')
@@ -115,9 +112,9 @@ def display_atom(cdl,i_atom):
     plt.show()
 
 # plot atom from mu wave
-display_atom
+display_atom(cdl,3)
 
-def display_atoms(cdl, n_atoms, rows, columns, sfreq):
+def display_atoms(model, n_atoms, rows, columns, sfreq):
     if rows * columns < n_atoms:
         raise ValueError("The grid size (rows x columns) must be at least equal to n_atoms")
 
@@ -129,7 +126,7 @@ def display_atoms(cdl, n_atoms, rows, columns, sfreq):
         col = i_atom % columns
         ax = axes[row, col]
 
-        v_hat = cdl.v_hat_[i_atom]
+        v_hat = model.v_hat_[i_atom]
         t = np.arange(v_hat.size) / sfreq
 
         ax.plot(t, v_hat)
@@ -142,5 +139,65 @@ def display_atoms(cdl, n_atoms, rows, columns, sfreq):
         axes[row, col].axis('off')
 
     plt.tight_layout()
+    plt.savefig("../figures/atoms_somato.pdf", dpi=300)
     plt.show()
 
+
+def display_ffts(model, n_atoms, rows, columns, sfreq):
+    if rows * columns < n_atoms:
+        raise ValueError("The grid size (rows x columns) must be at least equal to n_atoms")
+
+    figsize = (columns * 5, rows * 5.5)
+    fig, axes = plt.subplots(rows, columns, figsize=figsize, squeeze=False)
+
+    for i_atom in range(n_atoms):
+        row = i_atom // columns
+        col = i_atom % columns
+        ax = axes[row, col]
+
+        v_hat = model.v_hat_[i_atom]
+        psd = np.abs(np.fft.rfft(v_hat)) ** 2
+        frequencies = np.linspace(0, sfreq / 2.0, len(psd))
+        ax.semilogy(frequencies, psd)
+        ax.set(xlabel='Frequencies (Hz)', title=f'Atom {i_atom + 1}')
+        ax.grid(True)
+        ax.set_xlim(0, 30)
+
+    for i in range(n_atoms, rows * columns):
+        row = i // columns
+        col = i % columns
+        axes[row, col].axis('off')
+
+    plt.tight_layout()
+    plt.savefig("../figures/topomap_ffts.pdf", dpi=300)
+    plt.show()
+
+def display_topomap(model, n_atoms, rows, columns):
+    if rows * columns < n_atoms:
+        raise ValueError("The grid size (rows x columns) must be at least equal to n_atoms")
+
+    figsize = (columns * 5, rows * 5.5)
+    fig, axes = plt.subplots(rows, columns, figsize=figsize, squeeze=False)
+
+    for i_atom in range(n_atoms):
+        row = i_atom // columns
+        col = i_atom % columns
+        ax = axes[row, col]
+
+        u_hat = model.u_hat_[i_atom]
+        mne.viz.plot_topomap(u_hat, info, axes=ax, show=False)
+        ax.set(title=f'Atom {i_atom + 1}')
+
+    for i in range(n_atoms, rows * columns):
+        row = i // columns
+        col = i % columns
+        axes[row, col].axis('off')
+
+    plt.tight_layout()
+    plt.savefig("../figures/topomap_somato.pdf", dpi=300)
+    plt.show()
+
+
+display_atoms(cdl, n_atoms, 5, 5, sfreq)
+display_ffts(cdl, n_atoms, 5, 5, sfreq)
+display_topomap(cdl, n_atoms, 5, 5)

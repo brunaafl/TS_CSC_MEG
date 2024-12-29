@@ -12,7 +12,7 @@ mem = Memory(location=ALPHACSC_CACHE_DIR, verbose=0)
 
 
 @mem.cache(ignore=['n_jobs'])
-def load_data(dataset="somato", n_splits=10, sfreq=None, epoch=None,
+def load_data(dataset="somato", n_splits=10, sfreq=None, epoch=None, channels= None,
               filter_params=[2., None], return_array=True, n_jobs=1):
     """Load and prepare the somato dataset for multiCSC
 
@@ -54,6 +54,10 @@ def load_data(dataset="somato", n_splits=10, sfreq=None, epoch=None,
         file_name = join(data_path, 'sub-01', 'meg',
                          'sub-01_task-somato_meg.fif')
         raw = mne.io.read_raw_fif(file_name, preload=True)
+
+        if channels is not None:
+            raw = raw.pick_channels(channels)
+
         raw.notch_filter(np.arange(50, 101, 50), n_jobs=n_jobs)
         event_id = {'somato': 1}
 
