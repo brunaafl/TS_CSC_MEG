@@ -52,19 +52,23 @@ cdl = BatchCDL(
 # in epochs. The epochs are selected around the stim, starting 2 seconds
 # before and finishing 4 seconds after.
 
-from alphacsc.datasets.mne_data import load_data
+from mne_data import load_data
 t_lim = (-2, 4)
 
 motor = []
 X_motor, info_motor = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq)
+X_visual, info_visual = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq, channels=visual)
 
-meg_channels = [
+
+visual = [
     "MEG 1521", "MEG 1721", "MEG 1921", "MEG 1941",
     "MEG 2031", "MEG 2321", "MEG 2521", "MEG 2631",
     "MEG 1711", "MEG 1731", "MEG 1931", "MEG 2111",
     "MEG 2341", "MEG 2511", "MEG 2531",
     "MEG 1741", "MEG 2131", "MEG 2141", "MEG 2541"
 ]
+X_visual, info_visual = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq, channels=visual)
+
 
 ###############################################################################
 # Separate the data in two parts depending on the region

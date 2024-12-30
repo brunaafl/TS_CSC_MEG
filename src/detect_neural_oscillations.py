@@ -1,3 +1,4 @@
+# noinspection PyPackageRequirements
 r"""
 ===========================================================
 Finding other neural rhythms
