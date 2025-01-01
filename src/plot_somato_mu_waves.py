@@ -12,16 +12,7 @@ the presence of :math:`\mu`-waves located in the SI cortex.
     <https://arxiv.org/abs/1805.09654v2>`_. Advances in Neural Information
     Processing Systems (NIPS).
 """
-
-# Authors: Thomas Moreau <thomas.moreau@inria.fr>
-#          Mainak Jas <mainak.jas@telecom-paristech.fr>
-#          Tom Dupre La Tour <tom.duprelatour@telecom-paristech.fr>
-#          Alexandre Gramfort <alexandre.gramfort@telecom-paristech.fr>
-#
-# License: BSD (3-clause)
-
-###############################################################################
-# Let us first define the parameters of our model.
+from functions import display_atom, display_atoms, display_topomap, display_ffts
 
 sfreq = 150.
 
@@ -79,125 +70,10 @@ import mne
 import numpy as np
 import matplotlib.pyplot as plt
 
-def display_atom(model, i_atom):
-
-    n_plots = 3
-    figsize = (n_plots * 5, 5.5)
-    fig, axes = plt.subplots(1, n_plots, figsize=figsize, squeeze=False)
-
-    # Plot the spatial map of the learn atom using mne topomap
-    ax = axes[0, 0]
-    u_hat = model.u_hat_[i_atom]
-    mne.viz.plot_topomap(u_hat, info, axes=ax, show=False)
-    ax.set(title='Learned spatial pattern')
-
-    # Plot the temporal pattern of the learn atom
-    ax = axes[0, 1]
-    v_hat = model.v_hat_[i_atom]
-    t = np.arange(v_hat.size) / sfreq
-    ax.plot(t, v_hat)
-    ax.set(xlabel='Time (sec)', title='Learned temporal waveform')
-    ax.grid(True)
-
-    # Plot the psd of the time atom
-    ax = axes[0, 2]
-    psd = np.abs(np.fft.rfft(v_hat)) ** 2
-    frequencies = np.linspace(0, sfreq / 2.0, len(psd))
-    ax.semilogy(frequencies, psd)
-    ax.set(xlabel='Frequencies (Hz)', title='Power Spectral Density')
-    ax.grid(True)
-    ax.set_xlim(0, 30)
-
-    plt.tight_layout()
-    plt.show()
-
 # plot atom from mu wave
-display_atom(cdl,3)
+display_atom(cdl,3, info)
 
-def display_atoms(model, n_atoms, rows, columns, sfreq):
-    if rows * columns < n_atoms:
-        raise ValueError("The grid size (rows x columns) must be at least equal to n_atoms")
-
-    figsize = (columns * 5, rows * 5.5)
-    fig, axes = plt.subplots(rows, columns, figsize=figsize, squeeze=False)
-
-    for i_atom in range(n_atoms):
-        row = i_atom // columns
-        col = i_atom % columns
-        ax = axes[row, col]
-
-        v_hat = model.v_hat_[i_atom]
-        t = np.arange(v_hat.size) / sfreq
-
-        ax.plot(t, v_hat)
-        ax.set(xlabel='Time (sec)', title=f'Atom {i_atom + 1}')
-        ax.grid(True)
-
-    for i in range(n_atoms, rows * columns):
-        row = i // columns
-        col = i % columns
-        axes[row, col].axis('off')
-
-    plt.tight_layout()
-    plt.savefig("../figures/atoms_somato.pdf", dpi=300)
-    plt.show()
-
-
-def display_ffts(model, n_atoms, rows, columns, sfreq):
-    if rows * columns < n_atoms:
-        raise ValueError("The grid size (rows x columns) must be at least equal to n_atoms")
-
-    figsize = (columns * 5, rows * 5.5)
-    fig, axes = plt.subplots(rows, columns, figsize=figsize, squeeze=False)
-
-    for i_atom in range(n_atoms):
-        row = i_atom // columns
-        col = i_atom % columns
-        ax = axes[row, col]
-
-        v_hat = model.v_hat_[i_atom]
-        psd = np.abs(np.fft.rfft(v_hat)) ** 2
-        frequencies = np.linspace(0, sfreq / 2.0, len(psd))
-        ax.semilogy(frequencies, psd)
-        ax.set(xlabel='Frequencies (Hz)', title=f'Atom {i_atom + 1}')
-        ax.grid(True)
-        ax.set_xlim(0, 30)
-
-    for i in range(n_atoms, rows * columns):
-        row = i // columns
-        col = i % columns
-        axes[row, col].axis('off')
-
-    plt.tight_layout()
-    plt.savefig("../figures/topomap_ffts.pdf", dpi=300)
-    plt.show()
-
-def display_topomap(model, n_atoms, rows, columns):
-    if rows * columns < n_atoms:
-        raise ValueError("The grid size (rows x columns) must be at least equal to n_atoms")
-
-    figsize = (columns * 5, rows * 5.5)
-    fig, axes = plt.subplots(rows, columns, figsize=figsize, squeeze=False)
-
-    for i_atom in range(n_atoms):
-        row = i_atom // columns
-        col = i_atom % columns
-        ax = axes[row, col]
-
-        u_hat = model.u_hat_[i_atom]
-        mne.viz.plot_topomap(u_hat, info, axes=ax, show=False)
-        ax.set(title=f'Atom {i_atom + 1}')
-
-    for i in range(n_atoms, rows * columns):
-        row = i // columns
-        col = i % columns
-        axes[row, col].axis('off')
-
-    plt.tight_layout()
-    plt.savefig("../figures/topomap_somato.pdf", dpi=300)
-    plt.show()
-
-
+# display all
 display_atoms(cdl, n_atoms, 5, 5, sfreq)
 display_ffts(cdl, n_atoms, 5, 5, sfreq)
-display_topomap(cdl, n_atoms, 5, 5)
+display_topomap(cdl, n_atoms, 5, 5, info)

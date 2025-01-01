@@ -14,11 +14,6 @@ sfreq = 150
 X, info = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq)
 corr = covariances(X, estimator='corr')
 mean_corr = corr.mean(axis=0)
-plt.figure(figsize=(10, 8))
-sns.heatmap(mean_corr, cmap="hot", square=True, cbar=True)
-plt.title("Correlation Matrix")
-plt.show()
-
 
 # Now, for the figure with the histograms
 row_sums = mean_corr.sum(axis=1)
@@ -31,11 +26,15 @@ ax_heatmap = fig.add_subplot(gs[1, 0])
 sns.heatmap(mean_corr, cmap="hot", square=True, cbar=True, ax=ax_heatmap)
 ax_heatmap.set_title("Mean Covariance Matrix")
 
+# vertical
 ax_row_hist = fig.add_subplot(gs[1, 1], sharey=ax_heatmap)
 ax_row_hist.barh(np.arange(len(row_sums)), row_sums, color="orange")
 ax_row_hist.axis("off")
 
+# horizontal
 ax_col_hist = fig.add_subplot(gs[0, 0], sharex=ax_heatmap)
 ax_col_hist.bar(np.arange(len(col_sums)), col_sums, color="orange")
 ax_col_hist.axis("off")
+plt.savefig("../figures/channel_correlation.pdf", dpi=300)
 plt.show()
+

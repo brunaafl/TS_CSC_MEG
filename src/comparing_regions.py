@@ -7,15 +7,20 @@ Separating the channels into two regions of biggest correlation,
 defining a minimization problem for each, and comparing found atoms.
 
 """
+import copy
 
+import numpy as np
+import pandas as pd
 
+from functions import display_atoms, display_ffts, display_topomap
+from dtw import dtw
 ###############################################################################
 # Let us first define the parameters of our model.
 
 sfreq = 150.
 
 # Define the shape of the dictionary
-n_atoms = 25
+n_atoms = 10
 n_times_atom = int(round(sfreq * 1.0))  # 1000. ms
 
 ###############################################################################
@@ -55,6 +60,18 @@ cdl = BatchCDL(
 from mne_data import load_data
 t_lim = (-2, 4)
 
+X, info= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq)
+
+n_split = 110
+X1, ch_name_1 = X[:, :n_split], info.ch_names[:n_split]
+X2, ch_name_2 = X[:, n_split:], info.ch_names[n_split:]
+###############################################################################
+# Separate the data in two parts depending on the region
+# Select the channels from visual cortex (mu rhythms) and
+
+"""
+t_lim = (-2, 4)
+
 motor = []
 X_motor, info_motor = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq)
 X_visual, info_visual = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq, channels=visual)
@@ -68,15 +85,75 @@ visual = [
     "MEG 1741", "MEG 2131", "MEG 2141", "MEG 2541"
 ]
 X_visual, info_visual = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq, channels=visual)
+"""
 
-
-###############################################################################
-# Separate the data in two parts depending on the region
-# Select the channels from visual cortex (mu rhythms) and
 ###############################################################################
 # Fit the model and learn rank1 atoms
-cdl.fit(X)
+
+cdl_1 = copy.deepcopy(cdl)
+cdl_2 = copy.deepcopy(cdl)
+
+cdl_1.fit(X1)
+cdl_2.fit(X2)
 
 ###############################################################################
 # Display the 4-th atom, which displays a :math:`\mu`-waveform in its temporal
 # pattern.
+
+display_atoms(cdl_1, n_atoms, 5, 5, sfreq, savefig="atoms_somato_1")
+display_ffts(cdl_1, n_atoms, 5, 5, sfreq, savefig = "topomap_ffts_1")
+display_topomap(cdl_1, n_atoms, 5, 5, info, savefig = "topomap_somato_1")
+
+display_atoms(cdl_2, n_atoms, 5, 5, sfreq, savefig="atoms_somato_2")
+display_ffts(cdl_2, n_atoms, 5, 5, sfreq, savefig = "topomap_ffts_2")
+display_topomap(cdl_2, n_atoms, 5, 5, info, savefig = "topomap_somato_2")
+
+##########################################
+
+import matplotlib.pyplot as plt
+
+# Compare the atoms found in the two regions
+v_hat_1 = cdl_1.v_hat_
+v_hat_2 = cdl_2.v_hat_
+
+table = np.zeros(shape=(n_atoms, n_atoms))
+
+for i in range(n_atoms):
+    for j in range(i+1,n_atoms):
+
+        distance = dtw(v_hat_1[i], v_hat_2[j])
+        table[i,j]=distance
+        table[j,i]=distance
+
+columns = [f"Atom {i}" for i in range(1,1+n_atoms)]
+
+min_index = np.argmin(table)
+row, col = np.unravel_index(min_index, table.shape)
+
+# plot the most similar atoms
+min_distance = table[row,col]
+atom_row = v_hat_1[row]
+atom_col = v_hat_2[col]
+
+figsize = (5, 11)
+fig, axes = plt.subplots(1, 2, figsize=figsize, squeeze=False)
+
+t = np.arange(v_hat_1.size) / sfreq
+
+ax1 = axes[0]
+ax1.plot(t, atom_row)
+ax1.set(xlabel='Time (sec)', title=f'Atom {row + 1}')
+ax1.grid(True)
+
+ax2 = axes[1]
+ax2.plot(t, atom_col)
+ax2.set(xlabel='Time (sec)', title=f'Atom {col + 1}')
+ax2.grid(True)
+
+plt.tight_layout()
+plt.savefig("../figures/most_similar_atoms.pdf", dpi=300)
+plt.show()
+
+table_df = pd.DataFrame(table, columns=columns)
+
+print(table)

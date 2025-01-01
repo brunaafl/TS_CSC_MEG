@@ -92,8 +92,9 @@ def find_peaks(model, n_atoms, n=5, figure=False, rows=1, columns=1):
         mask = frequencies<=30
         frequencies = frequencies[mask]
         psd = psd[mask]
+        print(frequencies)
 
-        peaks_idx = np.argmax(psd)
+        peaks_idx = np.argsort(psd)[-n:][::-1]
         peaks_freq = frequencies[peaks_idx]
         #peaks_idx, _ = scipy.signal.find_peaks(psd)
         #peaks_freq = np.sort(frequencies[peaks_idx])[::-1]
@@ -105,8 +106,9 @@ def find_peaks(model, n_atoms, n=5, figure=False, rows=1, columns=1):
 
                 print(f"    {rhythms[v]} wave")
 
-                idx_higher_psd = np.argpartition(u_hat, -n)[-n:]
-                idx_sorted = idx_higher_psd[np.argsort(u_hat[idx_higher_psd])[::-1]]
+                # n most relevant channels
+                idx_sorted = np.argpartition(u_hat, -n)[-n:]
+                #idx_sorted = idx_sorted[np.argsort(u_hat[idx_sorted])[::-1]]
 
                 # most relevant channels
                 channels = np.array(info.ch_names)[idx_sorted]
@@ -134,6 +136,7 @@ def find_peaks(model, n_atoms, n=5, figure=False, rows=1, columns=1):
             col = i % columns
             axes[row, col].axis('off')
         plt.tight_layout()
+        plt.savefig("../figures/waves_per_region.pdf", dpi=300)
         plt.show()
 
     return main_rhythm
