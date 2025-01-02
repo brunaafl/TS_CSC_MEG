@@ -68,8 +68,8 @@ n_channels = len(info['ch_names'])
 idx_1 = np.arange(n_split)
 idx_2 = np.arange(n_split,n_channels)
 #X1, ch_name_1 = X[:, :n_split], info.ch_names[:n_split]
-X1, info1= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq,channels=info.ch_names[:n_split].append('STI 014'))
-X2, info2= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq,channels=info.ch_names[n_split:].append('STI 014'))
+X1, info1= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq,channels=info.ch_names[:n_split])
+X2, info2= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq,channels=info.ch_names[n_split:])
 
 
 def create_info(ch_names, sfreq=150):
