@@ -10,7 +10,7 @@ from utils.config import ALPHACSC_CACHE_DIR
 
 mem = Memory(location=ALPHACSC_CACHE_DIR, verbose=0)
 
-
+## Adaptation of the code at alphacsc
 @mem.cache(ignore=['n_jobs'])
 def load_data(dataset="somato", n_splits=10, sfreq=None, epoch=None, channels= None,
               filter_params=[2., None], return_array=True, n_jobs=1):
@@ -48,66 +48,59 @@ def load_data(dataset="somato", n_splits=10, sfreq=None, epoch=None, channels= N
     pick_types_epoch = dict(meg='grad', eeg=False, eog=True, stim=False)
     pick_types_final = dict(meg='grad', eeg=False, eog=False, stim=False)
 
-    if dataset == 'somato':
-        data_path = mne.datasets.somato.data_path()
-        subjects_dir = None
-        file_name = join(data_path, 'sub-01', 'meg',
-                         'sub-01_task-somato_meg.fif')
-        raw = mne.io.read_raw_fif(file_name, preload=True)
+    data_path = mne.datasets.somato.data_path()
+    subjects_dir = None
+    file_name = join(data_path, 'sub-01', 'meg',
+                     'sub-01_task-somato_meg.fif')
+    raw = mne.io.read_raw_fif(file_name, preload=True)
 
-        if channels is not None:
-            raw = raw.pick_channels(channels)
+    raw_copy = raw.copy()
 
-        raw.notch_filter(np.arange(50, 101, 50), n_jobs=n_jobs)
-        event_id = {'somato': 1}
+    # Keep a copy for event extraction
+    raw_stim = raw.copy()
+    raw_stim.pick_types(meg=False, stim=True)  # Only keep stim channels for event detection
 
-        # Dipole fit information
-        cov = None  # see below
-        file_trans = None
-        file_bem = None
-
-    elif dataset == 'sample':
-        data_path = mne.datasets.sample.data_path()
-        subjects_dir = join(data_path, "subjects")
-        data_dir = join(data_path, 'MEG', 'sample')
-        file_name = join(data_dir, 'sample_audvis_raw.fif')
-        raw = mne.io.read_raw_fif(file_name, preload=True)
-        raw.notch_filter(np.arange(60, 181, 60), n_jobs=n_jobs)
-        event_id = {'auditory/left': 1, 'auditory/right': 2,
-                    'visual/left': 3, 'visual/right': 4,
-                    'smiley': 5, 'buttonpress': 32}
-
-        # Dipole fit information
-        cov = join(data_dir, 'sample_audvis-cov.fif')
-        file_trans = join(data_dir, 'sample_audvis_raw-trans.fif')
-        file_bem = join(subjects_dir, 'sample', 'bem',
-                        'sample-5120-bem-sol.fif')
-
-    else:
-        raise ValueError('Unknown parameter dataset=%s.' % (dataset, ))
-    raw.filter(*filter_params, n_jobs=n_jobs)
-
-    baseline = (None, 0)
-    events = mne.find_events(raw, stim_channel='STI 014')
+    # Extract events from stim channels
+    event_id = {'somato': 1}
+    events = mne.find_events(raw_stim, stim_channel='STI 014')
     events = mne.pick_events(events, include=list(event_id.values()))
 
+
+    if channels is not None:
+        raw_copy = raw_copy.pick_channels(channels, ordered=True)
+
+    raw_copy.notch_filter(np.arange(50, 101, 50), n_jobs=n_jobs)
+
+
+    # Dipole fit information
+    cov = None  # see below
+    file_trans = None
+    file_bem = None
+
+    raw_copy.filter(*filter_params, n_jobs=n_jobs)
+
+    baseline = (None, 0)
+
+    # Now pick final channel types for the main raw object
+    raw_copy.pick_types(**pick_types_final)
+
     # compute the covariance matrix for somato
-    if dataset == "somato":
-        picks_cov = mne.pick_types(raw.info, **pick_types_epoch)
-        epochs_cov = mne.Epochs(raw, events, event_id, tmin=-4, tmax=0,
-                                picks=picks_cov, baseline=baseline,
-                                reject=dict(grad=4000e-13, eog=350e-6),
-                                preload=True)
-        epochs_cov.pick_types(**pick_types_final)
-        cov = mne.compute_covariance(epochs_cov)
+    picks_cov = mne.pick_types(raw_copy.info, **pick_types_epoch)
+    epochs_cov = mne.Epochs(raw_copy, events, event_id, tmin=-4, tmax=0,
+                            picks=picks_cov, baseline=baseline,
+                            reject=dict(grad=4000e-13),
+                            preload=True)
+    epochs_cov.pick_types(**pick_types_final)
+    cov = mne.compute_covariance(epochs_cov)
 
     if epoch:
         t_min, t_max = epoch
 
-        picks = mne.pick_types(raw.info, **pick_types_epoch)
-        epochs = mne.Epochs(raw, events, event_id, t_min, t_max, picks=picks,
+        picks = mne.pick_types(raw_copy.info, **pick_types_epoch)
+        epochs = mne.Epochs(raw_copy, events, event_id, t_min, t_max, picks=picks,
                             baseline=baseline, reject=dict(
-                                grad=4000e-13, eog=350e-6), preload=True)
+                                grad=4000e-13), preload=True)
+
         epochs.pick_types(**pick_types_final)
         info = epochs.info
         if sfreq is not None:
@@ -117,16 +110,18 @@ def load_data(dataset="somato", n_splits=10, sfreq=None, epoch=None, channels= N
             X = epochs.get_data()
 
     else:
-        events[:, 0] -= raw.first_samp
-        raw.pick_types(**pick_types_final)
-        info = raw.info
+        events[:, 0] -= raw_copy.first_samp
+        if channels is not None:
+            raw_copy = raw_copy.pick_channels(channels, ordered=True)
+        raw_copy.pick_types(**pick_types_final)
+        info = raw_copy.info
 
         if sfreq is not None:
-            raw, events = raw.resample(sfreq, events=events, npad='auto',
+            raw_copy, events = raw_copy.resample(sfreq, events=events, npad='auto',
                                        n_jobs=n_jobs)
 
         if return_array:
-            X = raw.get_data()
+            X = raw_copy.get_data()
             n_channels, n_times = X.shape
             n_times = n_times // n_splits
             X = X[:, :n_splits * n_times]
@@ -152,4 +147,4 @@ def load_data(dataset="somato", n_splits=10, sfreq=None, epoch=None, channels= N
     elif epoch:
         return epoch, info
     else:
-        return raw, info
+        return raw_copy, info

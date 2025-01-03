@@ -12,6 +12,7 @@ import copy
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 from functions import display_atoms, display_ffts, display_topomap
 from dtw import dtw
@@ -65,42 +66,22 @@ X, info= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq)
 
 n_split = 110
 n_channels = len(info['ch_names'])
-idx_1 = np.arange(n_split)
-idx_2 = np.arange(n_split,n_channels)
-#X1, ch_name_1 = X[:, :n_split], info.ch_names[:n_split]
-X1, info1= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq,channels=info.ch_names[:n_split].append('STI 014'))
-X2, info2= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq,channels=info.ch_names[n_split:].append('STI 014'))
 
+all_channels = info['ch_names']
+channels_1 = all_channels[:n_split] + ['STI 014']
+channels_2 = all_channels[n_split:] + ['STI 014']
+
+X1, info1= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq,channels=channels_1)
+X2, info2= load_data(dataset='somato', epoch=t_lim, sfreq=sfreq,channels=channels_2)
 
 def create_info(ch_names, sfreq=150):
     info = mne.create_info(ch_names=ch_names, sfreq=sfreq, )
     return info
 
 ###############################################################################
-# Separate the data in two parts depending on the region
-# Select the channels from visual cortex (mu rhythms) and
+# Learn rank-1 atoms for each separate part of the brain
 
-"""
-t_lim = (-2, 4)
-
-motor = []
-X_motor, info_motor = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq)
-X_visual, info_visual = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq, channels=visual)
-
-
-visual = [
-    "MEG 1521", "MEG 1721", "MEG 1921", "MEG 1941",
-    "MEG 2031", "MEG 2321", "MEG 2521", "MEG 2631",
-    "MEG 1711", "MEG 1731", "MEG 1931", "MEG 2111",
-    "MEG 2341", "MEG 2511", "MEG 2531",
-    "MEG 1741", "MEG 2131", "MEG 2141", "MEG 2541"
-]
-X_visual, info_visual = load_data(dataset='somato', epoch=t_lim, sfreq=sfreq, channels=visual)
-"""
-
-###############################################################################
-# Fit the model and learn rank1 atoms
-
+# Separate the problem into 2 different
 cdl_1 = copy.deepcopy(cdl)
 cdl_2 = copy.deepcopy(cdl)
 
@@ -111,13 +92,13 @@ cdl_2.fit(X2)
 # Display the 4-th atom, which displays a :math:`\mu`-waveform in its temporal
 # pattern.
 
-display_atoms(cdl_1, n_atoms, 5, 5, sfreq, savefig="atoms_somato_1")
-display_ffts(cdl_1, n_atoms, 5, 5, sfreq, savefig = "topomap_ffts_1")
-display_topomap(cdl_1, n_atoms, 5, 5, info1, savefig = "topomap_somato_1")
+display_atoms(cdl_1, n_atoms, 2, 5, sfreq, savefig="atoms_somato_1")
+display_ffts(cdl_1, n_atoms, 2, 5, sfreq, savefig = "topomap_ffts_1")
+display_topomap(cdl_1, n_atoms, 2, 5, info1, savefig = "topomap_somato_1")
 
-display_atoms(cdl_2, n_atoms, 5, 5, sfreq, savefig="atoms_somato_2")
-display_ffts(cdl_2, n_atoms, 5, 5, sfreq, savefig = "topomap_ffts_2")
-display_topomap(cdl_2, n_atoms, 5, 5, info2, savefig = "topomap_somato_2")
+display_atoms(cdl_2, n_atoms, 2, 5, sfreq, savefig="atoms_somato_2")
+display_ffts(cdl_2, n_atoms, 2, 5, sfreq, savefig = "topomap_ffts_2")
+display_topomap(cdl_2, n_atoms, 2, 5, info2, savefig = "topomap_somato_2")
 
 ##########################################
 
@@ -130,11 +111,19 @@ v_hat_2 = cdl_2.v_hat_
 table = np.zeros(shape=(n_atoms, n_atoms))
 
 for i in range(n_atoms):
-    for j in range(i+1,n_atoms):
+    align_row = []
+    for j in range(i,n_atoms):
 
-        distance = dtw(v_hat_1[i], v_hat_2[j])
-        table[i,j]=distance
-        table[j,i]=distance
+        alignment = dtw(v_hat_1[i], v_hat_2[j],keep_internals=True)
+        align_row.append(alignment)
+        table[i,j]=alignment.distance
+        table[j,i]=alignment.distance
+
+    #min_row = table[i,:].argmin(axis=0)
+    #closest = align_row[min_row]
+    #print(f"atom {i+1} and atom {min_row+1}")
+    #closest.plot(type="twoway", offset=10)
+    #plt.clf()
 
 columns = [f"Atom {i}" for i in range(1,1+n_atoms)]
 
@@ -146,17 +135,17 @@ min_distance = table[row,col]
 atom_row = v_hat_1[row]
 atom_col = v_hat_2[col]
 
-figsize = (5, 11)
+figsize = (11,5)
 fig, axes = plt.subplots(1, 2, figsize=figsize, squeeze=False)
 
-t = np.arange(v_hat_1.size) / sfreq
+t = np.arange(atom_row.size)/sfreq
 
-ax1 = axes[0]
+ax1 = axes[0,0]
 ax1.plot(t, atom_row)
 ax1.set(xlabel='Time (sec)', title=f'Atom {row + 1}')
 ax1.grid(True)
 
-ax2 = axes[1]
+ax2 = axes[0,1]
 ax2.plot(t, atom_col)
 ax2.set(xlabel='Time (sec)', title=f'Atom {col + 1}')
 ax2.grid(True)
@@ -166,5 +155,11 @@ plt.savefig("../figures/most_similar_atoms.pdf", dpi=300)
 plt.show()
 
 table_df = pd.DataFrame(table, columns=columns)
+table_df.index = columns
 
-print(table)
+fig, ax = plt.subplots()
+sns.heatmap(table_df, annot=True, cmap="YlGnBu", linewidths=0.5, ax=ax)
+plt.xticks(rotation=45)
+plt.savefig("../figures/distance_atoms.pdf", dpi=300)
+# Show the plot
+plt.show()
