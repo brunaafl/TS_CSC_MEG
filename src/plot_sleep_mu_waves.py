@@ -40,7 +40,7 @@ stages = ['Sleep stage W','Sleep stage 1','Sleep stage 2','Sleep stage 3/4','Sle
 from alphacsc import BatchCDL
 
 # Define the shape of the dictionary
-n_atoms = 25
+n_atoms = 10
 n_times_atom = int(round(sfreq * 1.0))  # 1000. ms
 
 cdl = BatchCDL(
