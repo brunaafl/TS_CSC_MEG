@@ -119,11 +119,11 @@ for i in range(n_atoms):
         table[i,j]=alignment.distance
         table[j,i]=alignment.distance
 
-    #min_row = table[i,:].argmin(axis=0)
-    #closest = align_row[min_row]
-    #print(f"atom {i+1} and atom {min_row+1}")
-    #closest.plot(type="twoway", offset=10)
-    #plt.clf()
+    min_row = table[i,:].argmin()-i
+    closest = align_row[min_row]
+    print(f"atom {i+1} and atom {min_row+1}")
+    closest.plot(type="twoway")
+    plt.clf()
 
 columns = [f"Atom {i}" for i in range(1,1+n_atoms)]
 

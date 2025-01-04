@@ -128,7 +128,7 @@ def display_topomap(model, n_atoms, rows, columns, info, savefig="topomap_somato
 
 
 
-def find_peaks(model, n_atoms, info, n=5, figure=False, rows=1, columns=1, sfreq=150):
+def find_peaks(model, n_atoms, info, n=5, figure=False, rows=1, columns=1, sfreq=150, savefig='waves_per_region'):
 
     if figure:
         figsize = (columns * 5, rows * 5.5)
@@ -152,8 +152,6 @@ def find_peaks(model, n_atoms, info, n=5, figure=False, rows=1, columns=1, sfreq
 
         peaks_idx = np.argsort(psd)[-n:][::-1]
         peaks_freq = frequencies[peaks_idx]
-        #peaks_idx, _ = scipy.signal.find_peaks(psd)
-        #peaks_freq = np.sort(frequencies[peaks_idx])[::-1]
 
         print(peaks_freq)
 
@@ -164,7 +162,6 @@ def find_peaks(model, n_atoms, info, n=5, figure=False, rows=1, columns=1, sfreq
 
                 # n most relevant channels
                 idx_sorted = np.argpartition(u_hat, -n)[-n:]
-                #idx_sorted = idx_sorted[np.argsort(u_hat[idx_sorted])[::-1]]
 
                 # most relevant channels
                 channels = np.array(info.ch_names)[idx_sorted]
@@ -192,6 +189,7 @@ def find_peaks(model, n_atoms, info, n=5, figure=False, rows=1, columns=1, sfreq
             col = i % columns
             axes[row, col].axis('off')
         plt.tight_layout()
+        plt.savefig(f"../figures/{savefig}.pdf", dpi=300)
         plt.show()
 
     return main_rhythm
