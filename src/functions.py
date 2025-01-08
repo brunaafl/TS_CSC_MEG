@@ -7,7 +7,8 @@ from matplotlib import pyplot as plt
 rhythms = {4:'Delta',
            8:'Theta',
            12:'Alpha-Mu',
-           30:'Beta'}
+           30:'Beta',
+           100: 'Spindle'}
 
 
 def display_atom(model, i_atom, info, sfreq=150):
@@ -128,7 +129,7 @@ def display_topomap(model, n_atoms, rows, columns, info, savefig="topomap_somato
 
 
 
-def find_peaks(model, n_atoms, info, n=5, figure=False, rows=1, columns=1, sfreq=150, savefig='waves_per_region'):
+def find_peaks(model, n_atoms, info, n=5, figure=False, rows=1, columns=1, sfreq=150, savefig='waves_per_region', mask=True):
 
     if figure:
         figsize = (columns * 5, rows * 5.5)
@@ -145,18 +146,22 @@ def find_peaks(model, n_atoms, info, n=5, figure=False, rows=1, columns=1, sfreq
         psd = np.abs(np.fft.rfft(v_hat)) ** 2
         frequencies = np.linspace(0, sfreq / 2.0, len(psd))
 
-        mask = frequencies<=30
-        frequencies = frequencies[mask]
-        psd = psd[mask]
-        print(frequencies)
+        if mask is True:
+            mask = frequencies<=30
+            frequencies = frequencies[mask]
+            psd = psd[mask]
+            print(frequencies)
 
         peaks_idx = np.argsort(psd)[-n:][::-1]
         peaks_freq = frequencies[peaks_idx]
 
         print(peaks_freq)
 
+
         for v in rhythms.keys():
             if peaks_freq[0]<v:
+
+                print(f" Frequency {peaks_freq[0]}")
 
                 print(f"    {rhythms[v]} wave")
 
