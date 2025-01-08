@@ -217,14 +217,14 @@ def separate_sleep_stages(X, info):
         if stage_name is None:
             continue  # Skip if the event ID does not match any stage
         # Store data from each stage in the dict
-        data_by_stage[stage_name].append(X[j])
+        data_by_stage[stage_name].append(X[j,:,:])
         j += 1
 
     X_stage = {}
     for stage in data_by_stage.keys():
         value = data_by_stage[stage]
         if len(value)>0:
-            concat_values = np.concatenate(value)
-            X_stage[stage] = concat_values
+            concat_values = np.concatenate(value, axis=0)
+            X_stage[stage] = concat_values[:,None,:]
 
     return X_stage
